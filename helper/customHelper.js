@@ -764,6 +764,48 @@ module.exports = {
                 resolve({ error: error,  status: 404 });
             }
         })
-    }
+    },
+
+    updateUserEmail : (email, user_id) => {
+        return new Promise (resolve => {
+            conn.then(async(db) => {
+
+                db.collection('users').updateOne({ _id : new objectId(user_id )}, {'$set' : {email : email}}, async(error, result) => {
+                    if(error){
+
+                        resolve({status : 404, message : "database have some issue!!!"})
+                    }else{
+                        let status = await result;
+                        console.log(status)
+                        if(status.modifiedCount > 0){
+
+                            resolve({ status  : 200, message : "Email is updated!!" })
+                        }else{
+
+                            resolve({ status  : 404, message : "Email is already updated!!" })
+                        }
+                    }
+                })
+            })
+        })
+    },
+
+    updateTheRecord : (userId, tokenName, status) => {
+        return new Promise((resolve, reject) => {
+            conn.then(async(db) => {
+                db.collection('user_token').updateOne({userId : userId, tokenName : tokenName}, {'$set' : {status : status, last_updated_date : new Date() }}, {upsert : true})
+                resolve(true)
+            })
+        }) 
+    },
+
+    getRecord : (userId) => {
+        return new Promise((resolve, reject) => {
+            conn.then(async(db) => {
+                let data = await db.collection('user_token').find({userId : userId}).toArray()
+                resolve(data)
+            })
+        }) 
+    },
 
 }

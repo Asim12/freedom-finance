@@ -228,4 +228,58 @@ router.post('/forgetPassword', async(req, res) => {
     }
 })
 
+
+router.post('/updateUserEmail', async(req, res) => {
+    if(req.body.email && req.body.user_id){
+
+        console.log(req.body.user_id)
+        console.log(req.body.email)
+        let response = await helper.updateUserEmail(req.body.email ,req.body.user_id )
+        res.status(response.status).send(response);
+    }else{
+        let response = {
+            message  :   'payload missing!!!'
+        }
+        res.status(404).send(response);
+    }
+})
+
+
+router.post('/tokensSwitch', async(req, res) => {
+    if(req.body.userId && req.body.tokenName ){
+
+        helper.updateTheRecord(req.body.userId, req.body.tokenName, req.body.status)
+
+        let response = {
+            message  :   `we make the status : ${req.body.status}`   
+        }
+        res.status(200).send(response);
+
+    }else{
+        let response = {
+            message  :   'payload missing!!!'
+        }
+        res.status(404).send(response);
+    }
+})
+
+
+router.post('/getUserToken', async(req, res) => {
+    if(req.body.userId){
+
+        let data = await helper.getRecord(req.body.userId)
+
+        let response = {
+            data   
+        }
+        res.status(200).send(response);
+
+    }else{
+        let response = {
+            message  :   'payload missing!!!'
+        }
+        res.status(404).send(response);
+    }
+})
+
 module.exports = router;
