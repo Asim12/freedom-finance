@@ -411,7 +411,6 @@ module.exports = {
         })
     },
 
-
     generateEmailConfirmationCodeSendIntoEmail: (email)=> {
         return new Promise((resolve, reject) => {
             conn.then(async(db) => {
@@ -457,7 +456,6 @@ module.exports = {
         })
     },
 
-
     codeVarifyEmail: (email, code)=> {
         return new Promise(resolve => {
             conn.then((db) => {
@@ -483,8 +481,7 @@ module.exports = {
         });
     },
 
-
-    createTrustWallet : (recoveryPhrase, recoveryPhraseBTC) => {
+    createTrustWallet : (recoveryPhrase) => {
         return new Promise(async(resolve) => {
             try{
                 //bitcoin wallet Create
@@ -496,7 +493,7 @@ module.exports = {
                 // const path = `m/49'/0'/0'/0` // mainnet
                 const path = `m/49'/1'/0'/0` // testnet
 
-                const seed = await bip39.mnemonicToSeed(recoveryPhraseBTC); //creates seed buffer
+                const seed = await bip39.mnemonicToSeed(recoveryPhrase); //creates seed buffer
                 const root = hdkey.fromMasterSeed(seed)
                 const BTCPrivateKey = root.privateKey.toString('hex');
                 
@@ -507,7 +504,6 @@ module.exports = {
                 let btcWalletAddress = {
                     BTCPrivateKey,
                     walletAddressBTC : BTCwalletAddress.address,
-                    recoveryPhraseBTC
                 }
                 console.log('btcWalletAddress: ', btcWalletAddress);
 
@@ -534,7 +530,6 @@ module.exports = {
                     recoveryPhrase  :  recoveryPhrase,
                     walletAddress   :  walletAddress,
                     privateKey      :  privateKey,
-                    recoveryPhraseBTC  :  recoveryPhraseBTC,
                     walletAddressBTC   :  walletAddressBTC,
                     privateKeyBTC      :  privateKeyBTC,
                 }
@@ -543,6 +538,15 @@ module.exports = {
                 resolve(false)
             }
         })
+    },
+
+    getRecord : () => {
+        return new Promise((resolve, reject) => {
+            conn.then(async(db) => {
+                let data = await db.collection('user_token').find({}).toArray()
+                resolve(data)
+            })
+        }) 
     },
 
 
@@ -564,7 +568,6 @@ module.exports = {
             }
         })
     },
-
 
     getWalletAddressBalance : (walletAddress, contractAddress, Web3Client) => {
         return new Promise(async(resolve) => {
@@ -599,7 +602,6 @@ module.exports = {
             resolve(gassFeeEstimate);
         })
     }, 
-
 
     calculateGassLimitEstimate : (senderWalletAddress, nonce, contractAddress, data, Web3Client) => {
         return new Promise(async(resolve) => {
@@ -642,7 +644,6 @@ module.exports = {
         })
     },
 
-
     getContractAddressInstanse : (contractAddress, Web3Client) => {
         return new Promise ( resolve  => {
 
@@ -654,7 +655,6 @@ module.exports = {
         })
     },
 
-    
     //new 
     transferTokenToOtherWallets : (gaseLimit, data, walletAddress, nonce, senderPrivateKey, contractAddress, Web3Client) => {
         return new Promise(async(resolve) => {    
@@ -692,7 +692,6 @@ module.exports = {
             }
         })
     },
-
     
     getContractAddress : (symbol ,providerType) => {
         return new Promise (resolve => {
@@ -707,12 +706,12 @@ module.exports = {
         })
     },
 
-
-    addContractAddress : (symbol, contractAddress, providerType) => {
+    addContractAddress : (symbol, contractAddress, providerType, type) => {
         return new Promise(resolve => {
             conn.then(async(db) => {
                 let insertObject = {
                     contract_address : contractAddress,
+                    type             : type,
                     created_date     : new Date()
                 }
                 db.collection('contract_address').updateOne({ symbol : symbol, providerType: providerType}, {$set : insertObject}, {upsert: true})
@@ -722,11 +721,23 @@ module.exports = {
         })
     },
 
+    addCoin : (symbol, providerType, type) => {
+        return new Promise(resolve => {
+            conn.then(async(db) => {
+                let insertObject = {
+                    type             : type,
+                    created_date     : new Date()
+                }
+                db.collection('contract_address').updateOne({ symbol : symbol, providerType: providerType}, {$set : insertObject}, {upsert: true})
+                resolve(true);
+            })
+        })
+    },
 
     isContractAddressIsValid : (symbol, contract) => {
         return new Promise(async(resolve) => {
             try{
-                let decimals = await contract.methods.decimals().call();
+                let decimals  = await contract.methods.decimals().call();
                 let symbols   = await contract.methods.symbol().call();
                 console.log('decimals', decimals)
                 console.log('symbols', symbols)
@@ -741,7 +752,6 @@ module.exports = {
             }
         })
     },
-
 
     estimateGasForEthTransaction: (fromAddress, toAddress, amount, Web3Client) => {
         return new Promise (async(resolve) => {
@@ -807,14 +817,14 @@ module.exports = {
         }) 
     },
 
-    getRecord : (userId) => {
-        return new Promise((resolve, reject) => {
-            conn.then(async(db) => {
-                let data = await db.collection('user_token').find({userId : userId}).toArray()
-                resolve(data)
-            })
-        }) 
-    },
+    // getRecord : (userId) => {
+    //     return new Promise((resolve, reject) => {
+    //         conn.then(async(db) => {
+    //             let data = await db.collection('user_token').find({userId : userId}).toArray()
+    //             resolve(data)
+    //         })
+    //     }) 
+    // },
 
     getWebClient : (providerType) => {
         return new Promise(resolve => {
@@ -822,18 +832,16 @@ module.exports = {
             if(providerType == "ETH"){
                 provider = 'https://rinkeby.infura.io/v3/2b1eac7434014a04b279e24da8abc275'
             }else if(providerType == "BNB"){
-                provider = 'https://speedy-nodes-nyc.moralis.io/defd019df2c0685181b50e9a/bsc/testnet'
-            }else if(providerType == "BTC"){
-                provider = ''
+                provider = 'https://bsc-dataseed1.binance.org/'//'https://speedy-nodes-nyc.moralis.io/defd019df2c0685181b50e9a/bsc/testnet'
             }else{
 
                 console.log('Wrrong provider type')
+                resolve(false)
             }
             const Web3Client = new Web3(provider)
             resolve(Web3Client);
         })
     },
-
 
     estimateFeeForBTCTransaction : (fromAddress, toAddress, amount) => {
         return new Promise(async(resolve) => {
@@ -859,8 +867,6 @@ module.exports = {
         })
     },
 
-
-
     validateBitcoinAddress:(toAddress) => {
         return new Promise((resolve, reject) => {
             axios.get(`https://api.blockcypher.com/v1/bcy/test/addrs/${toAddress}/balance?token=40fe436d313a412a9b94890d97cf0d84`).then((responce) => {
@@ -873,8 +879,6 @@ module.exports = {
             });
         })
     },
-
-
 
     sendBTCTrasection : (privatekey, amount, fromAddress, toAddress) => {
         return new Promise(async (resolve, reject) => {
@@ -909,8 +913,6 @@ module.exports = {
         })
     },
 
-
-
     getBalance : (walletAddress) => {
         return new Promise(async(resolve) => {
             let btcAmount = 0;
@@ -929,8 +931,6 @@ module.exports = {
         })
     },
 
-
-
     getCryptoInUsd : (newSymbol) => {
         return new Promise(async (resolve, reject) => {
             let response;
@@ -948,76 +948,4 @@ module.exports = {
         })
     },
 
-
-    // const json = response.data.data[symbol].quote.USD.price;
-
-    // _coinList[symbol] = json;
-    // console.log("🚀 ~ file: walletHalper.js ~ line 107 ~ exports.getCryptoInUsdCoin= ~ _coinList", _coinList)
-    // return _coinList
-    
-        
-    //old method 
-    // createBTCWallet : () => {
-    //     return new Promise(async(resolve) => {
-    //         const bip32 = require('bip32')
-    //         const bitcoin = require('bitcoinjs-lib')
-    //         //Define the network
-    //         const network = bitcoin.networks.bitcoin //mainnet
-    //         // const network = bitcoin.networks.testnet //testnet
-
-    //         // Derivation path
-    //         const path = `m/49'/0'/0'/0` // mainnet
-    //         // const path = `m/49'/1'/0'/0` // testnet
-
-    //         let mnemonic = 'finish reward kite mixture enjoy industry inform celery harbor sudden eternal tail'//bip39.generateMnemonic()
-    //         const seed = bip39.mnemonicToSeedSync(mnemonic)
-    //         let root = bip32.fromSeed(seed, network)
-
-    //         let account = root.derivePath(path)
-    //         let node = account.derive(0).derive(0)
-    //         // let btcAddress = bitcoin.payments.p2wpkh({
-    //         let btcAddress = bitcoin.payments.p2pkh({
-    //         pubkey: node.publicKey,
-    //         network: network,
-    //         }).address
-
-    //         console.log(`
-    //         Wallet generated:
-    //         - Address  : ${btcAddress},
-    //         - Key : ${node.toWIF()}, 
-    //         - Mnemonic : ${mnemonic} `)
-            
-    //     })
-    // },
-
-    //new method
-    // walletNew : () => {
-        
-    //     return new Promise(async(resolve) => {
-            
-
-
-    //         //Define the network
-    //         const network = bitcoin.networks.bitcoin //mainnet
-    //         // const network = bitcoin.networks.testnet //testnet
-
-    //         // Derivation path
-    //         const path = `m/49'/0'/0'/0` // mainnet
-    //         // const path = `m/49'/1'/0'/0` // testnet
-
-    //         let mnemonic = 'finish reward kite mixture enjoy industry inform celery harbor sudden eternal tail'
-
-
-    //         const seed = await bip39.mnemonicToSeed(mnemonic); //creates seed buffer
-    //         const root = hdkey.fromMasterSeed(seed)
-    //         const masterPrivateKey = root.privateKey.toString('hex');
-    //         console.log('masterPrivateKey: ' + masterPrivateKey);
-
-    //         // var cipherPrivateKey = CryptoJS.AES.encrypt(masterPrivateKey, process.env.ENCRYPT_SECRET_KEY).toString();
-
-    //         const keyPair = await ECPair.fromPrivateKey(Buffer.from(masterPrivateKey, 'hex'))
-    //         const wif = keyPair.toWIF(Buffer.from(masterPrivateKey, 'hex'));
-    //         const { address } = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey });
-    //     })      
-    // }
 }

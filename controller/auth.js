@@ -137,14 +137,11 @@ router.post('/varifyOTPUsingEmail', async(req, res ) => {
 
 
 router.post('/createRecoveryPhrase', async(req, res) => {
-    if(req.body.walletType &&  req.body.btcWalletType){   
+    if(req.body.walletType){   
 
-        let recoveryPhrase     =  (req.body.walletType == 'create_new') ?  bip39.generateMnemonic() : ''     
-        let recoveryPhraseBTC  =  (req.body.btcWalletType == 'create_new') ? bip39.generateMnemonic() : ''
-
+        let recoveryPhrase     =   bip39.generateMnemonic()   
         let response = {
             recoveryPhrase ,
-            recoveryPhraseBTC
         }
         res.status(200).send(response);
     }else{
@@ -158,11 +155,11 @@ router.post('/createRecoveryPhrase', async(req, res) => {
 
 
 router.post('/signup', async(req, res ) => {
-    if(req.body.email && req.body.password && req.body.phone_number && req.body.recoveryPhrase &&  req.body.btcrecoveryPhrase){
+    if(req.body.email && req.body.password && req.body.phone_number && req.body.recoveryPhrase ){
 
         let userObject =  await helper.isUserAlreadyExists(req.body.email, req.body.phone_number)
         if(userObject == false){
-            var walletDeatils = await  helper.createTrustWallet(req.body.recoveryPhrase, req.body.btcrecoveryPhrase); 
+            var walletDeatils = await  helper.createTrustWallet(req.body.recoveryPhrase); 
             if(walletDeatils == false){
                 let response = {
                     message  :   'invalid mnemonic!!!'
@@ -176,7 +173,7 @@ router.post('/signup', async(req, res ) => {
                 recoveryPhrase    :   walletDeatils.recoveryPhrase,
                 walletAddress     :   walletDeatils.walletAddress,
                 privateKey        :   walletDeatils.privateKey,
-                recoveryPhraseBTC :   walletDeatils.recoveryPhraseBTC,
+                // recoveryPhraseBTC :   walletDeatils.recoveryPhraseBTC,
                 walletAddressBTC  :   walletDeatils.walletAddressBTC,
                 privateKeyBTC     :   walletDeatils.privateKeyBTC,
                 created_date      :   new Date()
