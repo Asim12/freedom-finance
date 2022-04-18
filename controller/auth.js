@@ -155,9 +155,9 @@ router.post('/createRecoveryPhrase', async(req, res) => {
 
 
 router.post('/signup', async(req, res ) => {
-    if(req.body.email && req.body.password && req.body.phone_number && req.body.recoveryPhrase ){
+    if(req.body.email && req.body.password && req.body.recoveryPhrase ){
 
-        let userObject =  await helper.isUserAlreadyExists(req.body.email, req.body.phone_number)
+        let userObject =  await helper.isUserAlreadyExists(req.body.email)
         if(userObject == false){
             var walletDeatils = await  helper.createTrustWallet(req.body.recoveryPhrase); 
             if(walletDeatils == false){
@@ -165,30 +165,29 @@ router.post('/signup', async(req, res ) => {
                     message  :   'invalid mnemonic!!!'
                 }
                 res.status(404).send(response);
-            }
-            let insertData = {
-                password          :   md5(req.body.password.trim()),
-                email             :   (req.body.email.trim()).toLowerCase(),
-                phone_number      :   req.body.phone_number.trim(),
-                recoveryPhrase    :   walletDeatils.recoveryPhrase,
-                walletAddress     :   walletDeatils.walletAddress,
-                privateKey        :   walletDeatils.privateKey,
-                // recoveryPhraseBTC :   walletDeatils.recoveryPhraseBTC,
-                walletAddressBTC  :   walletDeatils.walletAddressBTC,
-                privateKeyBTC     :   walletDeatils.privateKeyBTC,
-                created_date      :   new Date()
-            }
+            }else{
+                let insertData = {
+                    password          :   md5(req.body.password.trim()),
+                    email             :   (req.body.email.trim()).toLowerCase(),
+                    recoveryPhrase    :   walletDeatils.recoveryPhrase,
+                    walletAddress     :   walletDeatils.walletAddress,  
+                    privateKey        :   walletDeatils.privateKey,
+                    // recoveryPhraseBTC :   walletDeatils.recoveryPhraseBTC,
+                    walletAddressBTC  :   walletDeatils.walletAddressBTC,
+                    privateKeyBTC     :   walletDeatils.privateKeyBTC,
+                    created_date      :   new Date()
+                }
 
-            let userId = await helper.saveUserData(insertData)
-            // insertData.userId = userId;
-            let response = {
-                insertData
+                let userId = await helper.saveUserData(insertData)
+                // insertData.userId = userId;
+                let response = {
+                    insertData
+                }
+                res.status(200).send(response);
             }
-            res.status(200).send(response);
-
         }else{
             let response = {
-                message  :   'email or phone number already exists!!!'
+                message  :   'email already exists!!!'
             }
             res.status(404).send(response);
         }

@@ -4,16 +4,17 @@ const helper = require('../helper/customHelper')
 const ethers = require('ethers')
 // require('dotenv').config();
 const upload = require('../middleWare/upload');
-
+var axios = require('axios');
 const dotenv = require('dotenv')
+const convert = require('ether-converter')
 dotenv.config();
+const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap/sdk');
 const Web3 = require('web3');
-const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap-libs/sdk');
-const { JsonRpcProvider } = require("@ethersproject/providers");
-const provider = new JsonRpcProvider('https://bsc-dataseed1.binance.org/'); // mainnet
 const abi = require('../Router2abi.json')
 const pancakeSwapRouter2Address = '0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F'; //mainnet address
 
+const {JsonRpcProvider} = require("@ethersproject/providers");
+const provider = new JsonRpcProvider('https://bsc-dataseed1.binance.org/');
 
 router.post('/calculateGassLimit', async (req, res) => {
     if (req.body.walletAddress && req.body.numTokens && req.body.symbol && req.body.receiverAddress && req.body.providerType) {
@@ -254,16 +255,20 @@ router.post('/calculateGassFeeCoin', async (req, res) => {
 
 router.post('/getCoinBalance', async (req, res) => {
     if (req.body.walletAddress && req.body.providerType) {
+        try{
+            let Web3Client = await helper.getWebClient(req.body.providerType)
+            const ethBalance = await Web3Client.eth.getBalance(req.body.walletAddress)
+            console.log(ethBalance)
+            // convert amount to ether from wei
+            const ethAmount = Web3Client.utils.fromWei(ethBalance, 'ether')
+            let response = {
+                balance: ethAmount
+            }
+            res.status(200).send(response);
+        }catch(e) {
 
-        let Web3Client = await helper.getWebClient(req.body.providerType)
-        const ethBalance = await Web3Client.eth.getBalance(req.body.walletAddress)
-        console.log(ethBalance)
-        // convert amount to ether from wei
-        const ethAmount = Web3Client.utils.fromWei(ethBalance, 'ether')
-        let response = {
-            balance: ethAmount
+            res.status(404).send({ message: e});
         }
-        res.status(200).send(response);
     } else {
         let response = {
             message: 'Payload Missing'
@@ -273,7 +278,6 @@ router.post('/getCoinBalance', async (req, res) => {
 })
 
 
-
 //pancakeswap 
 router.post('/coinToTokenPrice', async (req, res) => {
     if (req.body.amount && req.body.toSymbol && req.body.providerType) {
@@ -281,39 +285,24 @@ router.post('/coinToTokenPrice', async (req, res) => {
         let toSymbol = req.body.toSymbol
 
         let contractAddress = await helper.getContractAddress(toSymbol, req.body.providerType)
+        console.log('========',contractAddress)
         if (contractAddress) {
             try {
                 var tradeAmount = ethers.utils.parseEther(String(etherAmount));
                 const chainId = ChainId.MAINNET
-                const weth = WETH[chainId];
-
-                const addresses = {
-                    WBNB: weth.address,
-                    BUSD: contractAddress,
-                    PANCAKE_ROUTER: pancakeSwapRouter2Address // router 2 address
-                }
-                const [WBNB, BUSD] = await Promise.all(
-                    [addresses.WBNB, addresses.BUSD].map(tokenAddress => (
-                        new Token(
-                            ChainId.MAINNET,
-                            tokenAddress,
-                            18
-                        )
-                    )));
-                const pair = await Fetcher.fetchPairData(WBNB, BUSD, provider)
-                console.log('asssssssssssssss')
-
-                const route = await new Route([pair], WBNB)
-                const trade = await new Trade(route, new TokenAmount(WBNB, tradeAmount), TradeType.EXACT_INPUT)
-                console.log('------ppppppppppppppp')
-                // console.log('trade', trade)
-
-                const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
-                const tokenPrice = route.midPrice.toSignificant(6);
-                let finalPrice = Number(etherAmount) * Number(tokenPrice);
-                let executionPrice = trade.executionPrice.toSignificant(6)
-
-                finalPrice = Math.round((finalPrice + Number.EPSILON) * 100) / 100;
+                const weth    = WETH[chainId];
+            
+                const tokenAddress = contractAddress;
+                const swapToken = await Fetcher.fetchTokenData(chainId, tokenAddress, provider);
+                console.log('swapToken', swapToken)
+                const pair = await Fetcher.fetchPairData(swapToken, weth, provider);
+                const route  = await new Route([pair], weth)
+                const trade  = await new Trade(route, new TokenAmount(weth, tradeAmount), TradeType.EXACT_INPUT)
+                const tokenPriceInEth =     route.midPrice.invert().toSignificant(6);
+                const tokenPrice      =     route.midPrice.toSignificant(6);
+                let finalPrice        =     Number(etherAmount) * Number(tokenPrice);
+                let executionPrice    =     trade.executionPrice.toSignificant(6)
+                finalPrice            =     Math.round((finalPrice + Number.EPSILON) * 100) / 100;
 
                 console.log("1 token = ", tokenPriceInEth)
                 console.log("total token by given by eth= ", finalPrice)
@@ -327,7 +316,7 @@ router.post('/coinToTokenPrice', async (req, res) => {
                 }
                 return res.status(200).json(result);
             } catch (error) {
-                console.log(error)
+                console.log(error.message)
                 let response = {
                     message: error
                 }
@@ -837,17 +826,20 @@ router.post('/Swapping', async (req, res) => {
 
 
 //BTC trasections
+// test network  https://api.blockcypher.com/v1/bcy/test/
+// live network  https://api.blockcypher.com/v1/btc/main/
 router.post('/estimateBTCTransactionFee', async (req, res) => {
     if (req.body.fromAddress && req.body.toAddress && req.body.amount) {
 
         let status = await helper.validateBitcoinAddress(req.body.toAddress)
-        if (status == 200) {
+        let responce = await helper.getBalance(req.body.toAddress);
+        if (status == 200 && responce.btcBal > Number(req.body.amount) ) {
 
             let data = await helper.estimateFeeForBTCTransaction(req.body.fromAddress, req.body.toAddress, req.body.amount);
             res.status(data.status).send(data)
         } else {
             let response = {
-                message: 'wallet address is not valid'
+                message: 'wallet address is not valid or You do not have enough amount for trasection'
             }
             res.status(404).send(response);
         }
@@ -896,6 +888,117 @@ router.post('/BTCBalance', async (req, res) => {
             message: 'Payload Missing'
         }
         res.status(404).send(response);
+    }
+})
+
+
+router.post('/getEtherTrasections', async (req, res) => {
+    if(req.body.walletAddress && req.body.filter){
+        // txlistinternal mean coins trasections and txlist mean token trasections
+        let type = 'txlist';
+        let walletAddress = req.body.walletAddress
+        let filter        = req.body.filter
+            var data = JSON.stringify({
+                "inputs": [
+                    {
+                        "addresses": [
+                            "bc1q5dl6esz96hvhal69eex7edmyqkmm9le9uvy07w"
+                        ]
+                    }
+                ],
+                "outputs": [
+                    {
+                        "addresses": [
+                            "bc1q2vuncvvacqgfepnwwjlpalycgrs7atfqaqdf8w"
+                        ],
+                        "value": 30000000
+                    }
+                ]
+            });
+            var config = {
+                method: 'get',
+                url: `https://api.etherscan.io/api?module=account&action=${type}&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=F6QQM17ZHNAT2SX9WJCCUNIX4RNBPVPPME`,
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                data : data
+            };
+            axios(config)
+            .then(function (response) {
+                let trasectionData = JSON.parse(JSON.stringify(response.data));
+                if(trasectionData){
+                    let trasections =  trasectionData.result
+                    for(let iteration=0 ; iteration < trasections.length ; iteration++) {
+
+                        trasections[iteration]['gasPrice'] = convert(trasections[iteration]['gasPrice'], 'gwei', 'ether')
+                    }
+                    if(filter == 'send'){
+
+                        let sendTrasectionsHistory = trasections.filter((item) => item.from === walletAddress);
+                        res.status(200).send({data : sendTrasectionsHistory})
+                    }else if(filter == 'receive'){
+
+                        let receiveTrasectionsHistory = trasections.filter((item) => item.to === walletAddress);
+                        res.status(200).send({data : receiveTrasectionsHistory})
+                    }else{ 
+
+                        res.status(200).send({data : trasections})
+                    }
+                }else{
+                    res.status(404).send({message : 'No history found'})
+                }
+            })
+            .catch(function (error) {
+                console.log(error);
+                res.status(404).send({message : error.message})
+            });
+    }else{
+        res.status(404).send({message : 'Payload Missing!!!'})
+    }
+})
+
+
+router.post('/getBSCTrasections', async (req, res) => {
+    if(req.body.walletAddress && req.body.filter){
+        // txlistinternal mean coins trasections and txlist mean token trasections
+        let walletAddress = (req.body.walletAddress).toLowerCase();
+
+        let filter        = req.body.filter
+        var config = {
+            method: 'get',
+            url: `https://api-testnet.bscscan.com/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=XBYQVS8AFZTKC2B187XTNP7UQN3KDH5APD`,
+            headers: { }
+        };
+        axios(config)
+        .then(function (response) {
+            let trasectionData = JSON.parse(JSON.stringify(response.data));
+            if(trasectionData){
+                let trasections =  trasectionData.result
+                for(let iteration=0 ; iteration < trasections.length ; iteration++) {
+
+                    trasections[iteration]['gasPrice'] = convert(trasections[iteration]['gasPrice'], 'gwei', 'ether')
+                }
+                if(filter == 'send'){
+
+                    let sendTrasectionsHistory = trasections.filter((item) => item.from === walletAddress);
+                    res.status(200).send({data : sendTrasectionsHistory})
+                }else if(filter == 'receive'){
+
+                    let receiveTrasectionsHistory = trasections.filter((item) => item.to === walletAddress);
+                    console.log(receiveTrasectionsHistory)
+                    res.status(200).send({data : receiveTrasectionsHistory})
+                }else{ 
+
+                    res.status(200).send({data : trasections})
+                }
+            }else{
+                res.status(404).send({message : 'No history found'})
+            }        })
+        .catch(function (error) {
+            res.status(404).send({message : error.message})
+        });
+    }else{
+        res.status(404).send({message : 'Payload Missing!!!'})
     }
 })
 
