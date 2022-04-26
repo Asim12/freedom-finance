@@ -341,31 +341,6 @@ module.exports = {
         })
     },
 
-    sendNumberOtp : (phone_number)=> {
-        return new Promise(resolve => {
-            console.log(phone_number)
-            client.verify.services('VA4978eb99f6320245000dad293353ebe5') //service id
-            .verifications
-            .create({to: phone_number, channel: 'sms'})
-            .then(verification => {
-                resolve(verification)
-            });
-        })
-    },
-
-    varifyOtp : (phone_number, code) => {
-        return new Promise(resolve => {
-
-            client.verify.services('VA4978eb99f6320245000dad293353ebe5')
-            .verificationChecks
-            .create({to: phone_number, code: code})
-            .then(verification_check => 
-                // console.log(verification_check.status)
-                resolve(verification_check)
-                );
-        })
-    },
-
     saveUserData : (insertData) => {
         return new Promise(resolve => {
             conn.then(async(db) => {
@@ -529,7 +504,7 @@ module.exports = {
     getRecord : () => {
         return new Promise((resolve, reject) => {
             conn.then(async(db) => {
-                let data = await db.collection('user_token').find({}).toArray()
+                let data = await db.collection('contract_address').find({}).toArray()
                 resolve(data)
             })
         }) 
@@ -680,8 +655,9 @@ module.exports = {
     },
     
     getContractAddress : (symbol ,providerType) => {
-        return new Promise (resolve => {
+        return new Promise (resolve => { 
             conn.then(async(db) => {
+
                 let data = await db.collection('contract_address').findOne({symbol : symbol, providerType : providerType })
                 if(data){
                     resolve(data.contract_address)
@@ -692,12 +668,13 @@ module.exports = {
         })
     },
 
-    addContractAddress : (symbol, contractAddress, providerType, type) => {
+    addContractAddress : (symbol, contractAddress, providerType, type, url) => {
         return new Promise(resolve => {
             conn.then(async(db) => {
                 let insertObject = {
                     contract_address : contractAddress,
                     type             : type,
+                    url              : url,
                     created_date     : new Date()
                 }
                 db.collection('contract_address').updateOne({ symbol : symbol, providerType: providerType}, {$set : insertObject}, {upsert: true})
@@ -707,11 +684,12 @@ module.exports = {
         })
     },
 
-    addCoin : (symbol, providerType, type) => {
+    addCoin : (symbol, providerType, type, url) => {
         return new Promise(resolve => {
             conn.then(async(db) => {
                 let insertObject = {
                     type             : type,
+                    url              : url,
                     created_date     : new Date()
                 }
                 db.collection('contract_address').updateOne({ symbol : symbol, providerType: providerType}, {$set : insertObject}, {upsert: true})
@@ -727,7 +705,7 @@ module.exports = {
                 let symbols   = await contract.methods.symbol().call();
                 console.log('decimals', decimals)
                 console.log('symbols', symbols)
-                if(symbols == symbol && decimals.length > 0  ){
+                if(symbols && decimals.length > 0  ){
                     resolve({ message : 'Valid', status : 200 })
                 }else{
 
@@ -738,7 +716,7 @@ module.exports = {
             }
         })
     },
-
+ 
     estimateGasForEthTransaction: (fromAddress, toAddress, amount, Web3Client) => {
         return new Promise (async(resolve) => {
             try {
@@ -923,4 +901,28 @@ module.exports = {
         })
     },
 
+
+    getContractName : (contractAddress) => {
+        return new Promise(resolve => {
+            conn.then(db => {
+                console.log('asim', contractAddress)
+                db.collection('contract_address').findOne({contract_address: contractAddress}, async(err, result) => {
+                    if(err){
+                        console.log('database have some errors!!!')
+                        resolve(false)
+                    }else{
+                        if(result){
+                            let data = await result.symbol
+                            console.log(data)
+                            resolve(data)
+                        }else{
+
+                            console.log('else')
+                            resolve(false)
+                        }
+                    }
+                })
+            })
+        })
+    }
 }

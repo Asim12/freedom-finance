@@ -7,12 +7,14 @@ const upload = require('../middleWare/upload');
 var axios = require('axios');
 const dotenv = require('dotenv')
 const convert = require('ether-converter')
+
 dotenv.config();
-const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap/sdk');
 const Web3 = require('web3');
 const abi = require('../Router2abi.json')
-const pancakeSwapRouter2Address = '0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F'; //mainnet address
 
+const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap/sdk');
+// const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap-libs/sdk');
+const pancakeSwapRouter2Address = '0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F'; //mainnet address
 const {JsonRpcProvider} = require("@ethersproject/providers");
 const provider = new JsonRpcProvider('https://bsc-dataseed1.binance.org/');
 
@@ -122,24 +124,21 @@ router.post('/getBalance', async (req, res) => {
 
 
 router.post('/addNewToken', async (req, res) => {
-    if (req.body.symbol && req.body.providerType && req.body.type) {
+    if (req.body.symbol && req.body.providerType && req.body.type && req.body.url) {
         let Web3Client = await helper.getWebClient(req.body.providerType)
-        let contract = await helper.getContractAddressInstanse(req.body.contractAddress, Web3Client)
-        console.log('asimmmmmmmmmmmmmmmm')
-        let checkStatus = await helper.isContractAddressIsValid(req.body.symbol, contract);
-        if (req.body.type == 'token' && checkStatus.status == 200) {
-
-            console.log('ooooooooooooooooo')
+        if (req.body.type == 'token') {
+            let contract = await helper.getContractAddressInstanse(req.body.contractAddress, Web3Client)
+            let checkStatus = await helper.isContractAddressIsValid(req.body.symbol, contract);
             console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaa', checkStatus)
-            helper.addContractAddress(req.body.symbol, req.body.contractAddress, req.body.providerType, req.body.type);
+            helper.addContractAddress(req.body.symbol, req.body.contractAddress, req.body.providerType, req.body.type, req.body.url);
             res.status(checkStatus.status).send(checkStatus);
-        } else if (checkStatus.status == 200) {
+        } else if (req.body.type == 'coin') {
 
-            helper.addCoin(req.body.symbol, req.body.contractAddress, req.body.providerType, 'coin');
+            helper.addCoin(req.body.symbol, req.body.providerType, 'coin', req.body.url);
             res.status(200).send({ message: 'Added', status: 200 });
         } else {
 
-            res.status(checkStatus.status).send(checkStatus);
+            res.status(400).send({message: "type not valid"});
         }
     } else {
         let response = {
@@ -428,17 +427,19 @@ router.post('/tokenToTokenPrice', async (req, res) => {
         let fromSymbol = req.body.symbol
 
         let contractAddress = await helper.getContractAddress(toSymbol, req.body.providerType)
-        let fromcontractAddress = await helper.getContractAddress(fromSymbol)
-        if (contractAddress && fromcontractAddress) {
-            try {
-                var tradeAmount = ethers.utils.parseEther(String(etherAmount));
-                const chainId = ChainId.MAINNET
-                const weth = WETH[chainId];
-
+        let fromcontractAddress = await helper.getContractAddress(fromSymbol, req.body.providerType)
+        console.log('contractAddress', contractAddress)
+        console.log('fromcontractAddress', fromcontractAddress)
+        if (contractAddress && fromcontractAddress) {  
+            try{
+                // chain id for test net
+                const chainId = ChainId.MAINNET;
+                //token address to swap 
+                var amountEth = ethers.utils.parseEther(String(etherAmount));
                 const addresses = {
-                    WBNB: fromcontractAddress,//weth.address,
-                    BUSD: contractAddress,
-                    PANCAKE_ROUTER: pancakeSwapRouter2Address // router 2 address
+                    WBNB: fromcontractAddress,//'0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+                    BUSD: contractAddress,//'0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+                    PANCAKE_ROUTER: pancakeSwapRouter2Address
                 }
                 const [WBNB, BUSD] = await Promise.all(
                     [addresses.WBNB, addresses.BUSD].map(tokenAddress => (
@@ -447,19 +448,17 @@ router.post('/tokenToTokenPrice', async (req, res) => {
                             tokenAddress,
                             18
                         )
-                    )));
-
+                    ))
+                );
+                //fetch ether through chain id
+                const weth = WETH[chainId];
                 const pair = await Fetcher.fetchPairData(WBNB, BUSD, provider)
-                const route = await new Route([pair], WBNB)
-                const trade = await new Trade(route, new TokenAmount(WBNB, tradeAmount), TradeType.EXACT_INPUT)
-                console.log('------ppppppppppppppp')
-                // console.log('trade', trade)
-
+                const route = new Route([pair], WBNB);
+                const trade = new Trade(route, new TokenAmount(WBNB, String(amountEth)), TradeType.EXACT_INPUT)
                 const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
                 const tokenPrice = route.midPrice.toSignificant(6);
                 let finalPrice = Number(etherAmount) * Number(tokenPrice);
                 let executionPrice = trade.executionPrice.toSignificant(6)
-
                 finalPrice = Math.round((finalPrice + Number.EPSILON) * 100) / 100;
 
                 console.log("1 token = ", tokenPriceInEth)
@@ -467,16 +466,12 @@ router.post('/tokenToTokenPrice', async (req, res) => {
                 console.log("Minimum received= ", executionPrice * etherAmount)
 
                 const minimumReceived = executionPrice * etherAmount
-                const result = {
-                    tokenPriceInEth: tokenPriceInEth,
-                    tokenCalculate: finalPrice,
-                    minimumReceived: minimumReceived
-                }
+                const result = { tokenPriceInEth: tokenPriceInEth, tokenCalculate: finalPrice, minimumReceived: minimumReceived }
                 return res.status(200).json(result);
-            } catch (error) {
+            }catch(error){
                 console.log(error)
                 let response = {
-                    message: error
+                    message  : error
                 }
                 res.status(404).send(response);
             }
@@ -489,7 +484,7 @@ router.post('/tokenToTokenPrice', async (req, res) => {
         }
     } else {
         let response = {
-            message: 'Payload Missing'
+            message: 'Payload Missing!!!'
         }
         res.status(404).send(response);
     }
@@ -893,9 +888,9 @@ router.post('/BTCBalance', async (req, res) => {
 
 
 router.post('/getEtherTrasections', async (req, res) => {
-    if(req.body.walletAddress && req.body.filter){
-        // txlistinternal mean coins trasections and txlist mean token trasections
-        let type = 'txlist';
+    if(req.body.walletAddress && req.body.filter && req.body.type){
+        // txlist mean coins trasections and tokentx mean token trasections
+        let type = (req.body.type = 'coin') ? 'txlist' :  'tokentx';
         let walletAddress = req.body.walletAddress
         let filter        = req.body.filter
             var data = JSON.stringify({
@@ -918,14 +913,18 @@ router.post('/getEtherTrasections', async (req, res) => {
             var config = {
                 method: 'get',
                 url: `https://api.etherscan.io/api?module=account&action=${type}&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=F6QQM17ZHNAT2SX9WJCCUNIX4RNBPVPPME`,
+                //url: `https://api.etherscan.io/api?module=account&action=${type}&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=F6QQM17ZHNAT2SX9WJCCUNIX4RNBPVPPME`,
+                //url : `https://api.etherscan.io/api?module=account&action=tokentx&address=0x4e83362442b8d1bec281594cea3050c8eb01311c&startblock=0&endblock=27025780&sort=asc&apikey=YourApiKeyToken`,
                 headers: { 
                     'Content-Type': 'application/json'
                 },
                 data : data
             };
             axios(config)
-            .then(function (response) {
+            .then( async(response) => {
                 let trasectionData = JSON.parse(JSON.stringify(response.data));
+                console.log(trasectionData)
+
                 if(trasectionData){
                     let trasections =  trasectionData.result
                     for(let iteration=0 ; iteration < trasections.length ; iteration++) {
@@ -959,19 +958,20 @@ router.post('/getEtherTrasections', async (req, res) => {
 
 
 router.post('/getBSCTrasections', async (req, res) => {
-    if(req.body.walletAddress && req.body.filter){
-        // txlistinternal mean coins trasections and txlist mean token trasections
+    if(req.body.walletAddress && req.body.filter && req.body.type){
         let walletAddress = (req.body.walletAddress).toLowerCase();
-
+        // txlist mean coins trasections and tokentx mean token trasections
+        let type = (req.body.type = 'coin') ? 'txlist' :  'tokentx';
         let filter        = req.body.filter
         var config = {
             method: 'get',
-            url: `https://api-testnet.bscscan.com/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=XBYQVS8AFZTKC2B187XTNP7UQN3KDH5APD`,
+            url: `https://api-testnet.bscscan.com/api?module=account&action=${type}&address=${walletAddress}&startblock=0&endblock=99999999&sort=asc&apikey=XBYQVS8AFZTKC2B187XTNP7UQN3KDH5APD`,
             headers: { }
         };
         axios(config)
         .then(function (response) {
             let trasectionData = JSON.parse(JSON.stringify(response.data));
+
             if(trasectionData){
                 let trasections =  trasectionData.result
                 for(let iteration=0 ; iteration < trasections.length ; iteration++) {
