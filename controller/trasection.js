@@ -16,7 +16,7 @@ const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, To
 // const { WETH, ChainId, Route, Router, Fetcher, Trade, TokenAmount, TradeType, Token, Percent } = require('@pancakeswap-libs/sdk');
 const pancakeSwapRouter2Address = '0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F'; //mainnet address
 const {JsonRpcProvider} = require("@ethersproject/providers");
-const provider = new JsonRpcProvider('https://bsc-dataseed1.binance.org/');
+const provider = new JsonRpcProvider('https://bsc-dataseed1.binance.org/'); //https://bsc-dataseed1.binance.org/
 
 router.post('/calculateGassLimit', async (req, res) => {
     if (req.body.walletAddress && req.body.numTokens && req.body.symbol && req.body.receiverAddress && req.body.providerType) {
@@ -425,36 +425,23 @@ router.post('/tokenToTokenPrice', async (req, res) => {
         let etherAmount = parseFloat(req.body.amount)
         let toSymbol = req.body.toSymbol
         let fromSymbol = req.body.symbol
-
         let contractAddress = await helper.getContractAddress(toSymbol, req.body.providerType)
         let fromcontractAddress = await helper.getContractAddress(fromSymbol, req.body.providerType)
         console.log('contractAddress', contractAddress)
         console.log('fromcontractAddress', fromcontractAddress)
         if (contractAddress && fromcontractAddress) {  
             try{
-                // chain id for test net
                 const chainId = ChainId.MAINNET;
-                //token address to swap 
+
+                let toSwapToken = await ((toSymbol == "BUSD" && fromSymbol  == "LGBT") || (fromSymbol == "BUSD" &&   toSymbol== "LGBT") ) ?  WETH[chainId]: Fetcher.fetchTokenData(chainId, contractAddress, provider);
+                // const toSwapToken   = await Fetcher.fetchTokenData(chainId, contractAddress, provider);
+                const fromSwapToken = await Fetcher.fetchTokenData(chainId, fromcontractAddress, provider);
                 var amountEth = ethers.utils.parseEther(String(etherAmount));
-                const addresses = {
-                    WBNB: fromcontractAddress,//'0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
-                    BUSD: contractAddress,//'0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
-                    PANCAKE_ROUTER: pancakeSwapRouter2Address
-                }
-                const [WBNB, BUSD] = await Promise.all(
-                    [addresses.WBNB, addresses.BUSD].map(tokenAddress => (
-                        new Token(
-                            ChainId.MAINNET,
-                            tokenAddress,
-                            18
-                        )
-                    ))
-                );
                 //fetch ether through chain id
-                const weth = WETH[chainId];
-                const pair = await Fetcher.fetchPairData(WBNB, BUSD, provider)
-                const route = new Route([pair], WBNB);
-                const trade = new Trade(route, new TokenAmount(WBNB, String(amountEth)), TradeType.EXACT_INPUT)
+
+                const pair = await Fetcher.fetchPairData(toSwapToken, fromSwapToken, provider)
+                const route = new Route([pair], toSwapToken);
+                const trade = new Trade(route, new TokenAmount(toSwapToken, String(amountEth)), TradeType.EXACT_INPUT)
                 const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
                 const tokenPrice = route.midPrice.toSignificant(6);
                 let finalPrice = Number(etherAmount) * Number(tokenPrice);

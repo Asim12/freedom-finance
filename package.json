@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@pancakeswap-libs/sdk": "^1.0.1",
+    "@pancakeswap/sdk": "^2.4.5",
     "axios": "^0.26.1",
     "bip39": "^3.0.4",
     "bitcoinjs-lib": "^6.0.1",
@@ -16,6 +17,7 @@
     "debug": "~2.6.9",
     "dotenv": "^16.0.0",
     "ecpair": "^2.0.1",
+    "ether-converter": "^0.0.16",
     "ethers": "^5.5.4",
     "express": "~4.16.1",
     "hdkey": "^2.0.1",
