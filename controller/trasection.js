@@ -129,7 +129,6 @@ router.post("/sendToken", async (req, res) => {
 
 router.post("/getBalance", async (req, res) => {
   if (req.body.symbol && req.body.walletAddress && req.body.providerType) {
-
     let contractAddress = await helper.getContractAddress(
       req.body.symbol,
       req.body.providerType
@@ -529,90 +528,7 @@ router.post("/coinToTokenSwap", async (req, res) => {
   }
 });
 
-// router.post("/coinToTokenSwap_testing", async (req, res) => {
-//   if (
-//     req.body.privateKey &&
-//     req.body.toSymbol &&
-//     req.body.amount &&
-//     req.body.walletAddress &&
-//     req.body.providerType &&
-//     req.body.percentage
-//   ) {
-//     let privateKey = req.body.privateKey;
-//     let toSymbol = req.body.toSymbol;
-//     let etherAmount = req.body.amount;
-//     let walletAddress = req.body.walletAddress;
-//
-//     let contractAddress = await helper.getContractAddress(
-//       toSymbol,
-//       req.body.providerType
-//     );
-//     if (contractAddress) {
-//       var tradeAmount = ethers.utils.parseEther(String(etherAmount));
-//       const chainId = ChainId.MAINNET;
-//       const weth = WETH[chainId];
-//
-//       const addresses = {
-//         WBNB: weth.address,
-//         BUSD: contractAddress,
-//         PANCAKE_ROUTER: pancakeSwapRouter2Address, //pancakeswap router 2 mainnet
-//       };
-//       const [WBNB, BUSD] = await Promise.all(
-//         [addresses.WBNB, addresses.BUSD].map(
-//           (tokenAddress) => new Token(ChainId.MAINNET, tokenAddress, 18)
-//         )
-//       );
-//       const pair = await Fetcher.fetchPairData(WBNB, BUSD, provider);
-//
-//       const route = await new Route([pair], WBNB);
-//       const trade = await new Trade(
-//         route,
-//         new TokenAmount(WBNB, tradeAmount),
-//         TradeType.EXACT_INPUT
-//       );
-//
-//       const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
-//       const tokenPrice = route.midPrice.toSignificant(6);
-//       // set Tolerance 0.5%
-//       const slippageTolerance = new Percent(
-//         req.body.percentage ? req.body.percentage : "50",
-//         "10000"
-//       ); //10 bips 1 bip = 0.001%
-//       const amountOutMin = trade.minimumAmountOut(slippageTolerance).raw;
-//       // //set path of token and ether
-//       // const path = [weth.address, BUSD.address];
-//       // const to = walletAddress;
-//       // const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-//       // const value = trade.inputAmount.raw;
-//       //
-//       // const singer = new ethers.Wallet(privateKey);
-//       //
-//       // const account = singer.connect(provider);
-//       // const PANCAKE_ROUTER = new ethers.Contract(
-//       //   pancakeSwapRouter2Address,
-//       //   abi,
-//       //   account
-//       // );
-//       try {
-//         return res.status(200).json({ response: amountOutMin.toString() });
-//       } catch (error) {
-//         return res.status(400).json({ error: error.reason });
-//       }
-//     } else {
-//       let response = {
-//         message: "The Contract Address Provided Does Not Exist",
-//       };
-//       res.status(404).send(response);
-//     }
-//   } else {
-//     let response = {
-//       message: "Missing Data",
-//     };
-//     res.status(404).send(response);
-//   }
-// });
-
-router.post("/tokenToTokenPrice1", async (req, res) => {
+router.post("/tokenToTokenPrice", async (req, res) => {
   if (
     req.body.amount &&
     req.body.toSymbol &&
@@ -694,37 +610,6 @@ router.post("/tokenToTokenPrice1", async (req, res) => {
     };
     res.status(404).send(response);
   }
-});
-
-router.post("/tokenToTokenPriceMustafa", async (req, res) => {
-  const { amount, toSymbol, symbol, providerType } = req.body;
-  const swapTokenFrom = await helper.getContractAddress(symbol, providerType);
-  const SwapTokenTo = await helper.getContractAddress(toSymbol, providerType);
-  let Web3Client = await helper.getWebClient(providerType);
-  let contract = await helper.getContractAddressInstanse(swapTokenFrom, Web3Client);
-  var decimals = await contract.methods.decimals().call();
-  let contract2 = await helper.getContractAddressInstanse(SwapTokenTo, Web3Client);
-  var decimals2 = await contract2.methods.decimals().call();
-  const amountIn_new = ((parseFloat(amount) * (10 ** parseFloat(decimals))))
-  let amountInWith = await helper.exponentialToDecimal(amountIn_new)
-  let amountIn = amountInWith.replaceAll(',', '')
-  path = [swapTokenFrom, '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', SwapTokenTo];
-
-  let PANCAKE_ROUTER = await helper.getSwapInstanse(pancakeSwapRouter2Address, Web3Client, abi);
-  const testing = await PANCAKE_ROUTER.methods.getAmountsOut(amountIn.toString(), path).call();
-  let am = testing[2];
-  am = (parseFloat(am) / 10 ** parseFloat(decimals2))
-  console.log("🚀 ~ file: trasection.js ~ line 736 ~ router.post ~ am", am)
-  console.log("🚀 ~ file: trasection.js ~ line 729 ~ router.post ~ testing", testing)
-  //       var decimals = await contract.methods.decimals().call();
-  // const singer = new ethers.Wallet(privateKey);
-
-  // const account = singer.connect(provider);
-  // const PANCAKE_ROUTER = new ethers.Contract(pancakeSwapRouter2Address, abi, account);
-  // console.log("🚀 ~ file: trasection.js ~ line 730 ~ router.post ~ PANCAKE_ROUTER", PANCAKE_ROUTER)
-  // const testing = await PANCAKE_ROUTER.getAmountsOut(amount.toString(), path)
-  // console.log("🚀 ~ file: trasection.js ~ line 732 ~ router.post ~ testing", testing)
-
 });
 
 router.post("/tokenToTokenPriceM", async (req, res) => {
@@ -887,280 +772,97 @@ router.post("/tokenApproveForSwap", async (req, res) => {
 
 }),
 
-  router.post("/tokenToTokenSwapM", async (req, res) => {
-    const { privateKey, toSymbol, symbol, amount, walletAddress, providerType, percentage } = req.body;
+router.post("/tokenToTokenSwapM", async (req, res) => {
+  const { privateKey, toSymbol, symbol, amount, walletAddress, providerType, percentage } = req.body;
 
-    if (privateKey && toSymbol && symbol && amount && walletAddress && providerType && percentage) {
+  if (privateKey && toSymbol && symbol && amount && walletAddress && providerType && percentage) {
 
-      const swapTokenFrom = await helper.getContractAddress(symbol, providerType);
-      const SwapTokenTo = await helper.getContractAddress(toSymbol, providerType);
+    const swapTokenFrom = await helper.getContractAddress(symbol, providerType);
+    const SwapTokenTo = await helper.getContractAddress(toSymbol, providerType);
 
-      if (swapTokenFrom && SwapTokenTo) {
-        let Web3Client = await helper.getWebClient(providerType);
-        const balInEthM = await Web3Client.eth.getBalance(walletAddress)
-        const ethAmountM = Web3Client.utils.fromWei(balInEthM, 'ether')
-        if (Number(ethAmountM) < 0.005) {
-          return res.status(400).json({ error: `Insufficient Funds For Transaction` });
-        }
-        let contract = await helper.getContractAddressInstanse(swapTokenFrom, Web3Client);
-        var decimals = await contract.methods.decimals().call();
-        const amountIn_new = ((parseFloat(amount) * (10 ** parseFloat(decimals))))
-        let amountInWith = await helper.exponentialToDecimal(amountIn_new)
-        let amountIn = amountInWith.replaceAll(',', '')
+    if (swapTokenFrom && SwapTokenTo) {
+      let Web3Client = await helper.getWebClient(providerType);
+      const balInEthM = await Web3Client.eth.getBalance(walletAddress)
+      const ethAmountM = Web3Client.utils.fromWei(balInEthM, 'ether')
+      if (Number(ethAmountM) < 0.005) {
+        return res.status(400).json({ error: `Insufficient Funds For Transaction` });
+      }
+      let contract = await helper.getContractAddressInstanse(swapTokenFrom, Web3Client);
+      var decimals = await contract.methods.decimals().call();
+      const amountIn_new = ((parseFloat(amount) * (10 ** parseFloat(decimals))))
+      let amountInWith = await helper.exponentialToDecimal(amountIn_new)
+      let amountIn = amountInWith.replaceAll(',', '')
 
-        const chainId = ChainId.MAINNET;
-        const weth = WETH[chainId];
+      const chainId = ChainId.MAINNET;
+      const weth = WETH[chainId];
 
-        const swapTokenF = await Fetcher.fetchTokenData(chainId, swapTokenFrom, provider);
-        const swapTokenM = await Fetcher.fetchTokenData(chainId, '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', provider);
-        const swapTokenT = await Fetcher.fetchTokenData(chainId, SwapTokenTo, provider);
-        let pair
+      const swapTokenF = await Fetcher.fetchTokenData(chainId, swapTokenFrom, provider);
+      const swapTokenM = await Fetcher.fetchTokenData(chainId, '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', provider);
+      const swapTokenT = await Fetcher.fetchTokenData(chainId, SwapTokenTo, provider);
+      let pair
 
-        if (toSymbol === 'LGBT' || symbol === 'LGBT') {
-          pair = await Fetcher.fetchPairData(swapTokenF, swapTokenM, provider);
-        } else {
-          pair = await Fetcher.fetchPairData(swapTokenF, swapTokenT, provider);
-        }
-
-        const route = new Route([pair], swapTokenF);
-        const trade = new Trade(route, new TokenAmount(swapTokenF, amountIn.toString()), TradeType.EXACT_INPUT);
-        let tAmount = route.midPrice.toSignificant(6)
-        const slippageTolerance = new Percent(percentage ? percentage : "50", "10000"); //10 bips 1 bip = 0.001%
-
-        let amountOutMin = trade.minimumAmountOut(slippageTolerance).raw;
-
-        let path = [swapTokenF.address, swapTokenT.address];
-
-        if (toSymbol === 'LGBT' || symbol === 'LGBT') {
-          const pair2 = await Fetcher.fetchPairData(swapTokenM, swapTokenT, provider);
-          const route2 = new Route([pair2], swapTokenM);
-
-          console.log("🚀 ~ file: trasection.js ~ line 836 ~ router.post ~ tAmount.toString()", tAmount.toString())
-
-          const amIn_new = ((parseFloat(tAmount) * (10 ** parseFloat(18))))
-          let amInWith = await helper.exponentialToDecimal(amIn_new)
-
-          const BNBAmount = parseInt(amInWith);
-          const trade2 = new Trade(route2, new TokenAmount(swapTokenM, BNBAmount.toString()), TradeType.EXACT_INPUT);
-          path = [swapTokenF.address, swapTokenM.address, swapTokenT.address];
-          amountOutMin = trade2.minimumAmountOut(slippageTolerance).raw;
-        }
-
-        const to = walletAddress;
-        const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-        const singer = new ethers.Wallet(privateKey);
-
-        const account = singer.connect(provider);
-        const PANCAKE_ROUTER = new ethers.Contract(pancakeSwapRouter2Address, abi, account);
-        try {
-          const tx = await PANCAKE_ROUTER.swapExactTokensForTokens(
-            amountIn.toString(),
-            amountOutMin.toString(),
-            path,
-            to,
-            deadline,
-            { gasPrice: 1.5e10, gasLimit: 1000000 }
-          );
-
-          const receipt = await tx.wait();
-          console.log(`Tx-hash: ${tx.hash}`);
-          console.log(`Tx was mined in block: ${receipt.blockNumber}`);
-          let response = {
-            hash: tx.hash,
-            blockNumber: receipt.blockNumber,
-          };
-          return res.status(200).json(response);
-        } catch (error) {
-          return res.status(400).json({ error: error.reason });
-        }
+      if (toSymbol === 'LGBT' || symbol === 'LGBT') {
+        pair = await Fetcher.fetchPairData(swapTokenF, swapTokenM, provider);
       } else {
+        pair = await Fetcher.fetchPairData(swapTokenF, swapTokenT, provider);
+      }
 
+      const route = new Route([pair], swapTokenF);
+      const trade = new Trade(route, new TokenAmount(swapTokenF, amountIn.toString()), TradeType.EXACT_INPUT);
+      let tAmount = route.midPrice.toSignificant(6)
+      const slippageTolerance = new Percent(percentage ? percentage : "50", "10000"); //10 bips 1 bip = 0.001%
+
+      let amountOutMin = trade.minimumAmountOut(slippageTolerance).raw;
+
+      let path = [swapTokenF.address, swapTokenT.address];
+
+      if (toSymbol === 'LGBT' || symbol === 'LGBT') {
+        const pair2 = await Fetcher.fetchPairData(swapTokenM, swapTokenT, provider);
+        const route2 = new Route([pair2], swapTokenM);
+
+        console.log("🚀 ~ file: trasection.js ~ line 836 ~ router.post ~ tAmount.toString()", tAmount.toString())
+
+        const amIn_new = ((parseFloat(tAmount) * (10 ** parseFloat(18))))
+        let amInWith = await helper.exponentialToDecimal(amIn_new)
+
+        const BNBAmount = parseInt(amInWith);
+        const trade2 = new Trade(route2, new TokenAmount(swapTokenM, BNBAmount.toString()), TradeType.EXACT_INPUT);
+        path = [swapTokenF.address, swapTokenM.address, swapTokenT.address];
+        amountOutMin = trade2.minimumAmountOut(slippageTolerance).raw;
+      }
+
+      const to = walletAddress;
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+      const singer = new ethers.Wallet(privateKey);
+
+      const account = singer.connect(provider);
+      const PANCAKE_ROUTER = new ethers.Contract(pancakeSwapRouter2Address, abi, account);
+      try {
+        const tx = await PANCAKE_ROUTER.swapExactTokensForTokens(
+          amountIn.toString(),
+          amountOutMin.toString(),
+          path,
+          to,
+          deadline,
+          { gasPrice: 1.5e10, gasLimit: 1000000 }
+        );
+
+        const receipt = await tx.wait();
+        console.log(`Tx-hash: ${tx.hash}`);
+        console.log(`Tx was mined in block: ${receipt.blockNumber}`);
+        let response = {
+          hash: tx.hash,
+          blockNumber: receipt.blockNumber,
+        };
+        return res.status(200).json(response);
+      } catch (error) {
+        return res.status(400).json({ error: error.reason });
       }
     } else {
-      let response = { message: "Missing Data" };
-      res.status(404).send(response);
-    }
-  });
 
-router.post("/tokenToTokenPrice", async (req, res) => {
-  if (
-    req.body.amount &&
-    req.body.toSymbol &&
-    req.body.symbol &&
-    req.body.providerType
-  ) {
-    let etherAmount = req.body.amount;
-    let fromSymbol = req.body.symbol;
-    let toSymbol = req.body.toSymbol;
-    let contractAddress = await helper.getContractAddress(
-      toSymbol,
-      req.body.providerType
-    );
-    let fromcontractAddress = await helper.getContractAddress(
-      fromSymbol,
-      req.body.providerType
-    );
-    console.log("to-contractAddress----", contractAddress);
-    console.log("fromcontractAddress----", fromcontractAddress);
-    if (contractAddress && fromcontractAddress) {
-      if (
-        (toSymbol === "BUSD" && fromSymbol === "LGBT") ||
-        (fromSymbol === "BUSD" && toSymbol === "LGBT")
-      ) {
-        try {
-          let Web3Client = await helper.getWebClient(req.body.providerType);
-          let contract = await helper.getContractAddressInstanse(contractAddress, Web3Client);
-          var decimals = await contract.methods.decimals().call();
-          const amountIn_new = ((parseFloat(etherAmount) * (10 ** parseFloat(decimals))))
-          let amountInWith = await helper.exponentialToDecimal(amountIn_new)
-          let amountIn = amountInWith.replaceAll(',', '')
-          //var tradeAmount = ethers.utils.parseEther(String(amountIn));
-          var tradeAmount = amountIn;
-
-
-          console.log("tradeAmount  ---", tradeAmount);
-          //process.exit(0);
-
-          const chainId = ChainId.MAINNET;
-          //console.log(chainId);
-          const weth = WETH[chainId];
-          //console.log(weth);
-          const addresses = {
-            WBNB: contractAddress,
-            BUSD: weth.address,
-            PANCAKE_ROUTER: pancakeSwapRouter2Address, //router 2 address
-          };
-          const [WBNB, BUSD] = await Promise.all(
-            [addresses.WBNB, addresses.BUSD].map(
-              (tokenAddress) => new Token(ChainId.MAINNET, tokenAddress, decimals)
-            )
-          );
-
-          console.log("WBNB, BUSDWBNB, BUSDWBNB, BUSD ", WBNB, BUSD);
-          const pair = await Fetcher.fetchPairData(WBNB, BUSD, provider);
-          console.log("pppppppppppppppppppppppppppppppp", pair);
-          const route = await new Route([pair], WBNB);
-          console.log("================= route=========", route);
-          const trade = await new Trade(
-            route,
-            new TokenAmount(WBNB, tradeAmount),
-            TradeType.EXACT_INPUT
-          );
-          console.log("contractAddress==========================");
-          const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
-          console.log("tokenPriceInEth ---", tokenPriceInEth);
-          const tokenPrice = route.midPrice.toSignificant(6);
-          console.log("tokenPrice ---", tokenPrice);
-          let finalPrice = Number(etherAmount) * Number(tokenPrice);
-          console.log("finalPrice ---", finalPrice);
-          finalPrice = Math.round((finalPrice + Number.EPSILON) * 100) / 100;
-          var tradeAmountNew = ethers.utils.parseEther(String(tokenPriceInEth));
-          const tokenAddressNew = fromcontractAddress;
-          const swapToken = await Fetcher.fetchTokenData(
-            chainId,
-            tokenAddressNew,
-            provider
-          );
-          console.log("swapToken", swapToken);
-          const pairnew = await Fetcher.fetchPairData(
-            swapToken,
-            weth,
-            provider
-          );
-          const routenew = await new Route([pairnew], weth);
-          const tradenew = await new Trade(
-            routenew,
-            new TokenAmount(weth, tradeAmountNew),
-            TradeType.EXACT_INPUT
-          );
-          const tokenPriceInEthnew = route.midPrice.invert().toSignificant(6);
-          const tokenPricenew = route.midPrice.toSignificant(6);
-          let finalPricenew = Number(etherAmount) * Number(tokenPricenew);
-          let executionPricenew = tradenew.executionPrice.toSignificant(6);
-          finalPricenew =
-            Math.round((finalPricenew + Number.EPSILON) * 100) / 100;
-
-          console.log("1 token = ", tokenPriceInEthnew);
-          console.log("total token by given by eth= ", finalPrice);
-          console.log("Minimum received= ", executionPricenew * etherAmount);
-
-          const minimumReceived = executionPricenew * etherAmount;
-          const result = {
-            tokenPriceInEth: tokenPriceInEth,
-            tokenCalculate: finalPrice,
-            minimumReceived: minimumReceived,
-          };
-          return res.status(200).json(result);
-        } catch (error) {
-          console.log(error.message);
-          let response = {
-            message: error,
-          };
-          res.status(404).send(response);
-        }
-      } else {
-        try {
-          const chainId = ChainId.MAINNET;
-          const weth = WETH[chainId];
-          let toSwapToken = await Fetcher.fetchTokenData(
-            chainId,
-            contractAddress,
-            provider
-          );
-          // let toSwapToken = await ((toSymbol == "BUSD" && fromSymbol  == "LGBT") || (fromSymbol == "BUSD" &&   toSymbol== "LGBT") ) ?  weth : toTokens;
-          const fromSwapToken = await Fetcher.fetchTokenData(
-            chainId,
-            fromcontractAddress,
-            provider
-          );
-          var amountEth = ethers.utils.parseEther(String(etherAmount));
-          //fetch ether through chain id
-
-          const pair = await Fetcher.fetchPairData(
-            toSwapToken,
-            fromSwapToken,
-            provider
-          );
-          const route = new Route([pair], toSwapToken);
-          const trade = new Trade(
-            route,
-            new TokenAmount(toSwapToken, String(amountEth)),
-            TradeType.EXACT_INPUT
-          );
-          const tokenPriceInEth = route.midPrice.invert().toSignificant(6);
-          const tokenPrice = route.midPrice.toSignificant(6);
-          let finalPrice = Number(etherAmount) * Number(tokenPrice);
-          let executionPrice = trade.executionPrice.toSignificant(6);
-          finalPrice = Math.round((finalPrice + Number.EPSILON) * 100) / 100;
-
-          console.log("1 token = ", tokenPriceInEth);
-          console.log("total token by given by eth= ", finalPrice);
-          console.log("Minimum received= ", executionPrice * etherAmount);
-          const minimumReceived = executionPrice * etherAmount;
-          const result = {
-            tokenPriceInEth: tokenPriceInEth,
-            tokenCalculate: finalPrice,
-            minimumReceived: minimumReceived,
-          };
-          return res.status(200).json(result);
-        } catch (error) {
-          console.log(error);
-          let response = {
-            message: error,
-          };
-          res.status(404).send(response);
-        }
-      }
-    } else {
-      let response = {
-        message: "The Contract Address Provided Does Not Exist",
-      };
-      res.status(404).send(response);
     }
   } else {
-    let response = {
-      message: "Missing Data",
-    };
+    let response = { message: "Missing Data" };
     res.status(404).send(response);
   }
 });
@@ -1978,7 +1680,6 @@ router.post("/getEtherTrasections", async (req, res) => {
     res.status(404).send({ message: "Missing Data" });
   }
 });
-
 
 router.post("/getBSCTrasections", async (req, res) => {
   if (req.body.walletAddress && req.body.filter && req.body.type) {

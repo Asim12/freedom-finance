@@ -1526,9 +1526,6 @@ module.exports = {
         resolve({ solBal: 0, balanceInDollar: 0, status: 200 });
       }
     });
-  },
-
-  getBalance: (walletAddress) => {
     return new Promise(async (resolve) => {
       let btcAmount = 0;
       try {
